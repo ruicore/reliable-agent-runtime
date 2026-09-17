@@ -1,36 +1,42 @@
-# Reliable Agent Runtime
+# Reliable Agent Runtime Repository Context
 
-A small, inspectable runtime for durable agent tool execution, recovery,
-cancellation, and evidence.
+Audience: Codex. Treat this file as the repository routing entry point, not as a
+human-facing product description. Human product summary: [PRODUCT.md](PRODUCT.md).
 
-This repository is being built from a public problem statement and generated
-fixtures. It is not a provider proxy, a general-purpose agent framework, a chat
-application, or an observability SaaS.
+## Authority order
 
-## Product boundary
+1. [Codex document index](docs/codex/README.md)
+2. [Product contract](docs/codex/product-contract.md)
+3. Current phase requirements and acceptance contract
+4. Current phase plan and stage plan
+5. Source, tests, and generated evidence after implementation begins
 
-The runtime helps developers answer what an agent workflow actually completed,
-which side effects remain unknown, whether a retry is safe, and whether an action
-still has valid approval. The first public scenario uses deterministic model and
-tool simulators; it does not require private services or credentials.
+Lower-authority material MUST NOT broaden a higher-authority product boundary.
 
-The implementation brief records the current public product boundary. A detailed
-acceptance matrix will be added before implementation. Every behavior must be
-supported by a reproducible test and an explicit failure semantic.
+## Current phase
 
-## Status
+- Registry: [product phases](docs/codex/phases/README.md)
+- Active phase: [PH1 reliable runtime](docs/codex/phases/phase-1-reliable-runtime/README.md)
+- Lifecycle: `planning`
+- Implementation authorization: `blocked_pending_PH1-G01`
+- Acceptance status: `not_run`
+- Public push authorization for current changes: `not_granted`
 
-Planning reset: clean repository created on 2026-09-15. Runtime implementation has
-not started.
+## Repository constraints
 
-## Local development
+- Public/generated inputs only.
+- No private provenance, services, credentials, paths, or raw session material.
+- Runtime behavior MUST trace to an approved phase requirement and acceptance case.
+- Unknown external outcomes MUST NOT become success, failure, or retry permission.
+- Python development baseline: `3.14`; supported floor: `3.13`.
+- Phase 1 owns the complete current product baseline; Stage 00-04 are internal delivery increments.
+- No source or test implementation before the active contract gate passes.
 
-The development baseline is Python 3.14, with Python 3.13 as the minimum
-supported version. Release validation should cover both 3.13 and 3.14. Create an
-environment, install the package in editable mode with `pip install -e .[test]`,
-and run `python -m pytest`. The initial implementation brief defines the product
-contracts; implementation is intentionally still pending.
+## Commands after implementation authorization
 
-## License
+```text
+pip install -e .[test]
+python -m pytest
+```
 
-MIT. See [LICENSE](LICENSE).
+License: MIT. See [LICENSE](LICENSE).
