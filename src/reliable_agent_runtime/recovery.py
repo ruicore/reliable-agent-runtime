@@ -15,6 +15,12 @@ class RecoveryDecisionKind(StrEnum):
     HUMAN_ATTENTION = "human_attention"
 
 
+class HumanDecisionKind(StrEnum):
+    CONFIRM_EXTERNAL_COMPLETION = "confirm_external_completion"
+    TERMINATE = "terminate"
+    AUTHORIZE_NEW_ATTEMPT = "authorize_new_attempt"
+
+
 class UnsupportedAdapterGuarantee(RuntimeError):
     """The adapter guarantee declaration cannot be used by this contract."""
 
@@ -46,6 +52,12 @@ class RecoveryDecision:
 
 
 @dataclass(frozen=True)
+class RecoveryOutcome:
+    decision: RecoveryDecision
+    view: "RunView"
+
+
+@dataclass(frozen=True)
 class RecoveryMaterial:
     """Minimal historical identity needed to consider safe recovery."""
 
@@ -61,6 +73,10 @@ class RecoveryMaterial:
 
 class IncompatibleRecoveryMaterial(RuntimeError):
     """Historical recovery material cannot safely be used for this run."""
+
+
+class RecoveryMaterialRequired(RuntimeError):
+    """Recovery cannot proceed without historical material."""
 
 
 class RecoveryPolicy:

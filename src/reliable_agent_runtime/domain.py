@@ -16,6 +16,7 @@ class RunState(StrEnum):
     READY = "ready"
     COMPLETED = "completed"
     MODEL_INVALID = "model_invalid"
+    TERMINATED = "terminated"
 
 
 class ActionResultState(StrEnum):
@@ -132,6 +133,7 @@ class EventRecord:
     run_id: str
     kind: str
     sequence: int
+    detail_digest: str | None = None
 
 
 @dataclass(frozen=True)

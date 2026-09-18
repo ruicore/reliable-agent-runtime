@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+import os
+from pathlib import Path
+import sqlite3
+import subprocess
+import sys
 from threading import Barrier
 
 import pytest
@@ -10,13 +15,16 @@ from reliable_agent_runtime.domain import (
     ModelInput,
     ModelValidity,
     RequestIdentityConflict,
+    ToolOutput,
 )
 from reliable_agent_runtime.model import DeterministicModel, InvalidModel
 from reliable_agent_runtime.recovery import (
     AdapterGuarantees,
+    HumanDecisionKind,
     IncompatibleRecoveryMaterial,
     RecoveryDecisionKind,
     RecoveryMaterial,
+    RecoveryMaterialRequired,
 )
 from reliable_agent_runtime.runtime import RuntimeService
 from reliable_agent_runtime.sqlite import SQLiteRepository
@@ -231,3 +239,235 @@ def test_attempt_accounting_survives_new_runtime_instance(tmp_path) -> None:
         max_attempts=3,
     )
     assert decision.kind is RecoveryDecisionKind.HUMAN_ATTENTION
+
+
+def test_recover_query_confirms_lost_reply_without_new_attempt() -> None:
+    class LostReplyTool(SimulatedTool):
+        def execute(self, *, action_id: str, target: str, payload: str) -> object:
+            super().execute(action_id=action_id, target=target, payload=payload)
+            return {"reply": "lost"}
+
+        def query(self, *, action_id: str, target: str, payload: str) -> ToolOutput:
+            return ToolOutput(ActionResultState.SUCCEEDED)
+
+    service, repository, _, observer = make_service()
+    lost = LostReplyTool(observer._side_effects)
+    service.tool = lost
+    submitted = service.submit(request_id="req-query-reconcile", text="queryable side effect")
+    assert submitted.action is not None
+    service.approve(submitted.action.action_id)
+    unknown = service.execute(run_id=submitted.run.run_id)
+    outcome = service.recover(
+        run_id=unknown.run.run_id,
+        guarantees=AdapterGuarantees(queryable=True),
+        max_attempts=3,
+        material=RecoveryMaterial("r1", unknown.run.input_digest),
+    )
+    assert outcome.decision.kind is RecoveryDecisionKind.QUERY
+    assert outcome.view.action is not None
+    assert outcome.view.action.result is ActionResultState.SUCCEEDED
+    assert len(outcome.view.attempts) == 1
+    assert observer.count() == 1
+    assert repository.get_view(unknown.run.run_id).action.result is ActionResultState.SUCCEEDED
+
+
+def test_query_not_found_stays_unknown_and_moves_to_human_attention() -> None:
+    class NotFoundTool(SimulatedTool):
+        def execute(self, *, action_id: str, target: str, payload: str) -> object:
+            return {"reply": "lost"}
+
+        def query(self, *, action_id: str, target: str, payload: str) -> ToolOutput:
+            return ToolOutput(ActionResultState.UNKNOWN)
+
+    service, _, _, _ = make_service()
+    service.tool = NotFoundTool(SideEffectStore())
+    submitted = service.submit(request_id="req-query-unknown", text="not found")
+    assert submitted.action is not None
+    service.approve(submitted.action.action_id)
+    unknown = service.execute(run_id=submitted.run.run_id)
+    outcome = service.recover(
+        run_id=unknown.run.run_id,
+        guarantees=AdapterGuarantees(queryable=True),
+        max_attempts=3,
+        material=RecoveryMaterial("r1", unknown.run.input_digest),
+    )
+    assert outcome.decision.kind is RecoveryDecisionKind.HUMAN_ATTENTION
+    assert outcome.view.action is not None
+    assert outcome.view.action.result is ActionResultState.UNKNOWN
+    assert len(outcome.view.attempts) == 1
+
+
+def test_verified_retry_creates_a_new_attempt_and_preserves_history() -> None:
+    class RetryTool(SimulatedTool):
+        def __init__(self, effects):
+            super().__init__(effects)
+            self.calls = 0
+
+        def execute(self, *, action_id: str, target: str, payload: str) -> ToolOutput | object:
+            self.calls += 1
+            if self.calls == 1:
+                return {"reply": "lost"}
+            return super().execute(action_id=action_id, target=target, payload=payload)
+
+    service, _, _, _ = make_service()
+    effects = SideEffectStore()
+    retry_tool = RetryTool(effects)
+    service.tool = retry_tool
+    submitted = service.submit(request_id="req-safe-retry", text="safe retry")
+    assert submitted.action is not None
+    service.approve(submitted.action.action_id)
+    unknown = service.execute(run_id=submitted.run.run_id)
+    guarantees = AdapterGuarantees(
+        deduplication_verified=True,
+        deduplication_scope="action",
+        retry_safe=True,
+    )
+    outcome = service.recover(
+        run_id=unknown.run.run_id,
+        guarantees=guarantees,
+        max_attempts=2,
+        material=RecoveryMaterial("r1", unknown.run.input_digest),
+    )
+    assert outcome.decision.kind is RecoveryDecisionKind.RETRY
+    assert outcome.view.action is not None
+    assert outcome.view.action.result is ActionResultState.SUCCEEDED
+    assert len(outcome.view.attempts) == 2
+    assert effects.count() == 1
+
+
+def test_human_handling_preserves_unknown_and_can_terminate_or_authorize() -> None:
+    service, _, _, _ = make_service()
+    service.tool = type("MalformedTool", (), {"execute": lambda *_args, **_kwargs: {"ack": "yes"}})()
+    submitted = service.submit(request_id="req-human", text="human handling")
+    assert submitted.action is not None
+    service.approve(submitted.action.action_id)
+    unknown = service.execute(run_id=submitted.run.run_id)
+    material = RecoveryMaterial("r1", unknown.run.input_digest)
+
+    confirmed = service.handle_unknown(
+        run_id=unknown.run.run_id,
+        decision=HumanDecisionKind.CONFIRM_EXTERNAL_COMPLETION,
+        rationale="independent evidence reviewed",
+        material=material,
+    )
+    assert confirmed.run.state.value == "ready"
+    assert confirmed.action is not None
+    assert confirmed.action.result is ActionResultState.UNKNOWN
+    assert confirmed.events[-1].detail_digest is not None
+
+    terminated = service.handle_unknown(
+        run_id=unknown.run.run_id,
+        decision=HumanDecisionKind.TERMINATE,
+        rationale="operator stops unresolved work",
+        material=material,
+    )
+    assert terminated.run.state.value == "terminated"
+    assert terminated.action is not None
+    assert terminated.action.result is ActionResultState.UNKNOWN
+
+    class HumanAuthorizedTool:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def execute(self, *, action_id: str, target: str, payload: str) -> object:
+            self.calls += 1
+            return ToolOutput(ActionResultState.SUCCEEDED) if self.calls == 2 else {"ack": "yes"}
+
+    authorized_tool = HumanAuthorizedTool()
+    authorized_service, _, _, _ = make_service()
+    authorized_service.tool = authorized_tool
+    authorized = authorized_service.submit(request_id="req-human-authorized", text="explicit retry")
+    assert authorized.action is not None
+    authorized_service.approve(authorized.action.action_id)
+    authorized_unknown = authorized_service.execute(run_id=authorized.run.run_id)
+    authorized_result = authorized_service.handle_unknown(
+        run_id=authorized_unknown.run.run_id,
+        decision=HumanDecisionKind.AUTHORIZE_NEW_ATTEMPT,
+        rationale="operator accepts a separately tracked risk",
+        material=RecoveryMaterial("r1", authorized_unknown.run.input_digest),
+    )
+    assert authorized_result.action is not None
+    assert authorized_result.action.result is ActionResultState.SUCCEEDED
+    assert len(authorized_result.attempts) == 2
+
+
+def test_missing_recovery_material_is_an_explicit_refusal() -> None:
+    service, _, _, _ = make_service()
+    with pytest.raises(RecoveryMaterialRequired):
+        service.recover(
+            run_id="missing",
+            guarantees=AdapterGuarantees(),
+            max_attempts=1,
+            material=None,
+        )
+
+
+def test_real_process_restart_reconstructs_unknown_attempt_from_sqlite(tmp_path) -> None:
+    database = tmp_path / "process-restart.sqlite"
+    source_root = Path(__file__).parents[1] / "src"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(source_root) + os.pathsep + env.get("PYTHONPATH", "")
+    writer = """
+from reliable_agent_runtime import DeterministicModel, RuntimeService, SQLiteRepository
+from reliable_agent_runtime.tool import SideEffectStore
+import sys
+
+class LostReplyTool:
+    def execute(self, *, action_id: str, target: str, payload: str) -> object:
+        return {"reply": "lost"}
+
+database = sys.argv[1]
+service = RuntimeService(SQLiteRepository(f"sqlite:///{database}"), DeterministicModel(), LostReplyTool())
+view = service.submit(request_id="process-restart", text="durable unknown")
+service.approve(view.action.action_id)
+result = service.execute(run_id=view.run.run_id)
+print(result.run.run_id)
+"""
+    first = subprocess.run(
+        [sys.executable, "-c", writer, str(database)],
+        cwd=Path(__file__).parents[1],
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    run_id = first.stdout.strip()
+    reader = """
+from reliable_agent_runtime import DeterministicModel, RuntimeService, SQLiteRepository
+import sys
+
+class LostReplyTool:
+    def execute(self, *, action_id: str, target: str, payload: str) -> object:
+        return {"reply": "lost"}
+
+database, run_id = sys.argv[1:]
+service = RuntimeService(SQLiteRepository(f"sqlite:///{database}"), DeterministicModel(), LostReplyTool())
+view = service.query(run_id)
+print(len(view.attempts), view.action.result.value)
+"""
+    second = subprocess.run(
+        [sys.executable, "-c", reader, str(database), run_id],
+        cwd=Path(__file__).parents[1],
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert second.stdout.strip() == "1 unknown"
+
+
+def test_sqlite_event_schema_additive_migration_is_applied(tmp_path) -> None:
+    database = tmp_path / "old-schema.sqlite"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "CREATE TABLE events (event_id VARCHAR(64) PRIMARY KEY, run_id VARCHAR(64) NOT NULL, "
+            "kind VARCHAR(128) NOT NULL, sequence INTEGER NOT NULL, created_at DATETIME NOT NULL)"
+        )
+        connection.commit()
+
+    SQLiteRepository(f"sqlite:///{database}")
+    with sqlite3.connect(database) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(events)")}
+    assert "detail_digest" in columns

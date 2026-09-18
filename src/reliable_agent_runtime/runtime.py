@@ -28,14 +28,24 @@ from .domain import (
     safe_model_output,
 )
 from .ports import ModelPort, RuntimeRepository, ToolPort
-from .recovery import AdapterGuarantees, RecoveryDecision, RecoveryDecisionKind, RecoveryPolicy
+from .recovery import (
+    AdapterGuarantees,
+    HumanDecisionKind,
+    IncompatibleRecoveryMaterial,
+    RecoveryDecision,
+    RecoveryDecisionKind,
+    RecoveryMaterial,
+    RecoveryMaterialRequired,
+    RecoveryOutcome,
+    RecoveryPolicy,
+)
 
 
 class RuntimeService:
     """Minimal R1 submit/query/approve/execute/report surface.
 
-    Recovery, retries, cancellation, budgets and real providers are deliberately
-    unsupported in this slice and are not silently inferred.
+    Recovery is explicit and guarantee-bound in Stage 02; cancellation, complete
+    execution budgets and real providers remain unsupported in this slice.
     """
 
     def __init__(self, repository: RuntimeRepository, model: ModelPort, tool: ToolPort) -> None:
@@ -109,24 +119,31 @@ class RuntimeService:
         self.repository.approve(action_id)
 
     def execute(self, *, run_id: str):
+        return self._dispatch(run_id=run_id, allow_unknown=False, event_prefix="dispatch")
+
+    def _dispatch(self, *, run_id: str, allow_unknown: bool, event_prefix: str):
         view = self.repository.get_view(run_id)
         if not view.action:
             return view
+        if view.run.state is RunState.TERMINATED:
+            return view
         if view.action.approval is not ApprovalState.APPROVED:
             raise ApprovalRequired("exact approval is required before dispatch")
-        if view.action.result is not ActionResultState.NOT_STARTED:
+        if view.action.result is not ActionResultState.NOT_STARTED and not (
+            allow_unknown and view.action.result is ActionResultState.UNKNOWN
+        ):
             return view
 
         attempt_id = uuid4().hex
         self.repository.create_attempt(
             attempt=AttemptRecord(attempt_id, view.action.action_id, DispatchState.INTENT_PERSISTED, ActionResultState.NOT_STARTED),
-            event=self._event(run_id, "attempt_intent_persisted", len(view.events) + 1),
+            event=self._event(run_id, f"{event_prefix}_attempt_intent_persisted", len(view.events) + 1),
         )
         # This durable transition is intentionally before the tool call.
         self.repository.mark_dispatched(
             view.action.action_id,
             attempt_id,
-            self._event(run_id, "dispatch_recorded", len(view.events) + 2),
+            self._event(run_id, f"{event_prefix}_recorded", len(view.events) + 2),
         )
         outcome = self.tool.execute(
             action_id=view.action.action_id,
@@ -144,7 +161,7 @@ class RuntimeService:
             view.action.action_id,
             attempt_id,
             result,
-            self._event(run_id, "result_recorded", len(view.events) + 3),
+            self._event(run_id, f"{event_prefix}_result_recorded", len(view.events) + 3),
         )
         return self.repository.get_view(run_id)
 
@@ -160,9 +177,10 @@ class RuntimeService:
             "attempt_count": len(view.attempts),
             "events": [event.kind for event in view.events],
             "limitations": [
-                "no recovery dispatch or reconciliation",
+                "recovery requires explicit adapter guarantees and material",
+                "no automatic recovery scan",
                 "no cancellation",
-                "no complete retry accounting",
+                "no complete execution-time budget",
                 "no real providers",
             ],
         }
@@ -186,6 +204,110 @@ class RuntimeService:
             guarantees=guarantees,
         )
 
+    def recover(
+        self,
+        *,
+        run_id: str,
+        guarantees: AdapterGuarantees,
+        max_attempts: int | None,
+        material: RecoveryMaterial | None,
+    ) -> RecoveryOutcome:
+        """Reconcile or retry only when the declared adapter contract permits it."""
+
+        if material is None:
+            raise RecoveryMaterialRequired("historical recovery material is required")
+        view = self.repository.get_view(run_id)
+        material.require_compatible(
+            contract_version=view.run.contract_version,
+            input_digest=view.run.input_digest,
+        )
+        decision = self.recovery_decision(
+            run_id=run_id,
+            guarantees=guarantees,
+            max_attempts=max_attempts,
+        )
+        if decision.kind is RecoveryDecisionKind.QUERY:
+            query = getattr(self.tool, "query", None)
+            if not callable(query) or view.action is None or not view.attempts:
+                return RecoveryOutcome(
+                    RecoveryDecision(RecoveryDecisionKind.HUMAN_ATTENTION, "query guarantee has no query operation"),
+                    view,
+                )
+            outcome = query(
+                action_id=view.action.action_id,
+                target=view.action.target,
+                payload=view.action.payload,
+            )
+            queried_result = self._validated_tool_result(outcome)
+            if queried_result in (ActionResultState.SUCCEEDED.value, ActionResultState.REJECTED.value):
+                self.repository.record_result(
+                    view.action.action_id,
+                    view.attempts[-1].attempt_id,
+                    queried_result,
+                    self._event(run_id, "recovery_query_confirmed", len(view.events) + 1),
+                )
+                return RecoveryOutcome(decision, self.repository.get_view(run_id))
+            self.repository.append_event(
+                self._event(run_id, "recovery_query_unknown", len(view.events) + 1),
+            )
+            return RecoveryOutcome(
+                RecoveryDecision(RecoveryDecisionKind.HUMAN_ATTENTION, "query did not verify completion"),
+                self.repository.get_view(run_id),
+            )
+        if decision.kind is RecoveryDecisionKind.RETRY:
+            return RecoveryOutcome(
+                decision,
+                self._dispatch(run_id=run_id, allow_unknown=True, event_prefix="recovery_retry"),
+            )
+        return RecoveryOutcome(decision, view)
+
+    def handle_unknown(
+        self,
+        *,
+        run_id: str,
+        decision: HumanDecisionKind,
+        rationale: str,
+        material: RecoveryMaterial | None,
+    ):
+        """Record an evidence-bound human choice without rewriting the unknown fact."""
+
+        if material is None:
+            raise RecoveryMaterialRequired("historical recovery material is required")
+        view = self.repository.get_view(run_id)
+        material.require_compatible(
+            contract_version=view.run.contract_version,
+            input_digest=view.run.input_digest,
+        )
+        if not view.action or view.action.result is not ActionResultState.UNKNOWN:
+            raise IncompatibleRecoveryMaterial("human handling requires an unknown action result")
+        normalized = canonicalize_input(rationale)
+        if not normalized:
+            raise ValueError("human rationale is required")
+        event = self._event(
+            run_id,
+            f"human_{decision.value}",
+            len(view.events) + 1,
+            detail_digest=digest_text(normalized),
+        )
+        if decision is HumanDecisionKind.TERMINATE:
+            self.repository.append_event(event, state=RunState.TERMINATED)
+            return self.repository.get_view(run_id)
+        self.repository.append_event(event)
+        if decision is HumanDecisionKind.AUTHORIZE_NEW_ATTEMPT:
+            return self._dispatch(run_id=run_id, allow_unknown=True, event_prefix="human_authorized")
+        return self.repository.get_view(run_id)
+
     @staticmethod
-    def _event(run_id: str, kind: str, sequence: int) -> EventRecord:
-        return EventRecord(uuid4().hex, run_id, kind, sequence)
+    def _validated_tool_result(outcome: object) -> str:
+        if isinstance(outcome, ToolOutput) and outcome.contract_version == CONTRACT_VERSION:
+            return outcome.result.value
+        return ActionResultState.UNKNOWN.value
+
+    @staticmethod
+    def _event(
+        run_id: str,
+        kind: str,
+        sequence: int,
+        detail_digest: str | None = None,
+    ) -> EventRecord:
+        return EventRecord(uuid4().hex, run_id, kind, sequence, detail_digest)

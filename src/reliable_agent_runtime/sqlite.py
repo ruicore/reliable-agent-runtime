@@ -74,6 +74,7 @@ class EventRow(Base):
     run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id"), nullable=False)
     kind: Mapped[str] = mapped_column(String(128), nullable=False)
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    detail_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     run: Mapped[RunRow] = relationship(back_populates="events")
 
@@ -95,6 +96,7 @@ class SQLiteRepository:
         if self.engine.dialect.name == "sqlite":
             event.listen(self.engine, "connect", self._enable_foreign_keys)
         Base.metadata.create_all(self.engine)
+        self._migrate_sqlite_schema()
         self._sessions = sessionmaker(self.engine, expire_on_commit=False)
 
     @staticmethod
@@ -102,6 +104,21 @@ class SQLiteRepository:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
+
+    def _migrate_sqlite_schema(self) -> None:
+        """Apply the small additive migration needed by the Stage 02 event contract."""
+
+        if self.engine.dialect.name != "sqlite":
+            return
+        with self.engine.begin() as connection:
+            columns = {
+                row[1]
+                for row in connection.exec_driver_sql("PRAGMA table_info(events)").fetchall()
+            }
+            if "detail_digest" not in columns:
+                connection.exec_driver_sql(
+                    "ALTER TABLE events ADD COLUMN detail_digest VARCHAR(64)"
+                )
 
     def find_by_request(self, request_id: str) -> RunView | None:
         with self._write_lock, self._sessions() as session:
@@ -190,8 +207,17 @@ class SQLiteRepository:
                 raise ActionNotFound(f"action {action_id} was not found")
             action.result = result
             attempt.result = result
-            if result == ActionResultState.SUCCEEDED.value:
+            if result == ActionResultState.SUCCEEDED.value and action.run.state != RunState.TERMINATED.value:
                 action.run.state = RunState.COMPLETED.value
+            session.add(self._event_row(event))
+
+    def append_event(self, event: EventRecord, state: RunState | None = None) -> None:
+        with self._write_lock, self._sessions.begin() as session:
+            run = session.get(RunRow, event.run_id)
+            if not run:
+                raise ActionNotFound(f"run {event.run_id} was not found")
+            if state is not None:
+                run.state = state.value
             session.add(self._event_row(event))
 
     @staticmethod
@@ -201,6 +227,7 @@ class SQLiteRepository:
             run_id=event_record.run_id,
             kind=event_record.kind,
             sequence=event_record.sequence,
+            detail_digest=event_record.detail_digest,
             created_at=_utcnow(),
         )
 
@@ -225,7 +252,10 @@ class SQLiteRepository:
             AttemptRecord(a.attempt_id, a.action_id, DispatchState(a.dispatch), ActionResultState(a.result))
             for a in (action.attempts if action else [])
         )
-        events = tuple(EventRecord(e.event_id, e.run_id, e.kind, e.sequence) for e in sorted(row.events, key=lambda e: e.sequence))
+        events = tuple(
+            EventRecord(e.event_id, e.run_id, e.kind, e.sequence, e.detail_digest)
+            for e in sorted(row.events, key=lambda e: e.sequence)
+        )
         return RunView(
             run=RunRecord(row.run_id, row.request_id, row.input_digest, row.contract_version, RunState(row.state)),
             action=action_record,

@@ -13,7 +13,7 @@ human_readable: false
 
 Phase ID: `PH1`
 
-Status: Stage 00 R1 contract accepted; Stage 01 bounded slice complete; Stage 02 recovery increment is in progress.
+Status: Stage 00 R1 contract accepted; Stage 01 bounded slice and Stage 02 recovery increment are complete. Stage 03 remains blocked.
 
 ## Product outcome
 
@@ -38,7 +38,7 @@ phase documents.
 | --- | --- | --- | --- |
 | 00 | [Contract Design](stages/00-contract-design.md) | Accepted | Complete requirements, interfaces, states, persistence, errors, data rules, and AC-01..18 mappings are approved. |
 | 01 | [Traceable Execution](stages/01-traceable-execution.md) | Complete | AC-01, AC-02, AC-03, and AC-14 bounded slice tests pass. |
-| 02 | [Recoverable Execution](stages/02-recoverable-execution.md) | In progress | Guarantee-aware recovery increment is implemented; full AC-04..08 and AC-17 remain open. |
+| 02 | [Recoverable Execution](stages/02-recoverable-execution.md) | Complete | AC-04..08 and AC-17 recovery tests pass locally; independent evidence remains required for full Phase 1 acceptance. |
 | 03 | [Controlled Execution](stages/03-controlled-execution.md) | Blocked by Stage 02 | AC-09..13 pass; Stages 01-02 regress cleanly. |
 | 04 | [Reproducible Delivery](stages/04-reproducible-delivery.md) | Blocked by Stage 03 | AC-15, AC-16, AC-18 and full AC-01..18 regression pass. |
 
@@ -47,7 +47,7 @@ phase documents.
 - The public problem, independent scenario, full Phase 1 boundary, and non-goals are recorded.
 - All examples use public or generated data and local simulators.
 - The bounded AC-01/AC-02/AC-03/AC-14 slice is implemented and tested locally.
-- Stage 02 currently covers guarantee-aware recovery decisions and durable attempt accounting; full acceptance remains `not_run` until independent evidence is collected.
+- Stage 02 covers guarantee-aware recovery decisions, query/retry reconciliation, human handling, process restart, additive SQLite migration, and durable attempt accounting; full Phase 1 acceptance remains `not_run` until independent evidence is collected.
 
 ## Phase exit
 

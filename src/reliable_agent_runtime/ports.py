@@ -10,6 +10,7 @@ from .domain import (
     AttemptRecord,
     EventRecord,
     RunRecord,
+    RunState,
     RunView,
 )
 
@@ -45,6 +46,8 @@ class RuntimeRepository(Protocol):
         event: EventRecord,
     ) -> None: ...
 
+    def append_event(self, event: EventRecord, state: RunState | None = None) -> None: ...
+
 
 class ModelPort(Protocol):
     def generate(self, model_input: object) -> object: ...
@@ -52,6 +55,10 @@ class ModelPort(Protocol):
 
 class ToolPort(Protocol):
     def execute(self, *, action_id: str, target: str, payload: str) -> object: ...
+
+
+class QueryableToolPort(ToolPort, Protocol):
+    def query(self, *, action_id: str, target: str, payload: str) -> object: ...
 
 
 class UnitOfWork(AbstractContextManager["UnitOfWork"], Protocol):

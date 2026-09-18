@@ -11,7 +11,7 @@ human_readable: false
 
 # Phase 1 Delivery Plan
 
-Status: active. Stage 01 bounded slice is complete; Stage 02 recovery increment is in progress. This document does not authorize commit, push, release, or publication.
+Status: active. Stage 01 bounded slice and Stage 02 recovery increment are complete; Stage 03 is blocked pending its control contract. This document does not authorize commit, push, release, or publication.
 
 The private product catalog remains the source for product scope, capability
 ownership, portfolio status, and phase-level decisions. This public plan owns the
@@ -65,7 +65,7 @@ Exit: AC-01, AC-02, AC-03, and AC-14 pass; no unapproved dispatch, acknowledgeme
 | PH1-RC05 | Recovery-input retention/reference and compatibility refusal | AC-17 |
 | PH1-RC06 | Recovery evidence and Stage 01 regression | AC-01..08, AC-14, AC-17 applicable set |
 
-Exit: AC-04, AC-05, AC-06, AC-07, AC-08, and AC-17 pass. AC-12 remains incomplete until Stage 03 validates the full budget contract.
+Exit: AC-04, AC-05, AC-06, AC-07, AC-08, and AC-17 recovery tests pass locally; independent evidence remains required for full Phase 1 acceptance. AC-12 remains incomplete until Stage 03 validates the full budget contract.
 
 ## Stage 03: Controlled Execution
 

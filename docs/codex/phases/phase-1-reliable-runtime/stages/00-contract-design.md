@@ -39,7 +39,7 @@ The first executable slice exposes the following typed application operations:
 - `report(run_id) -> machine-readable mapping`: returns minimized identifiers, state, timeline kinds, and explicit unsupported controls.
 
 The R1 state dimensions are orthogonal: run control (`pending_approval`, `ready`,
-`completed`, `model_invalid`), approval (`pending`, `approved`, `rejected`),
+`completed`, `model_invalid`, `terminated`), approval (`pending`, `approved`, `rejected`),
 dispatch (`not_dispatched`, `intent_persisted`, `dispatched`), and action result
 (`not_started`, `succeeded`, `rejected`, `unknown`). A model-invalid submission has
 no executable action. Dispatch is never inferred from a result, and the external

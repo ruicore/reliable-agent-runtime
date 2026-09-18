@@ -3,7 +3,7 @@ audience: codex
 document_role: stage_plan
 phase_id: PH1
 stage_id: PH1-ST02
-status: in_progress
+status: complete
 implementation_authorized: true
 human_readable: false
 ---
@@ -16,7 +16,7 @@ Scope: PH1-RC01..RC06. Add query/deduplication guarantee declarations, reconcili
 
 Safety boundary: temporary not-found, a client idempotency key, or a human click is not completion proof. Non-queryable unknown results do not retry automatically. Stage 02 lays the persistent count foundation for AC-12 but does not claim complete budget acceptance.
 
-## R2 recovery contract increment
+## R2 recovery contract
 
 The first Stage 02 increment freezes the following database-neutral contracts:
 
@@ -26,6 +26,6 @@ The first Stage 02 increment freezes the following database-neutral contracts:
 - Attempt rows and events remain the durable source of consumed-attempt facts. A new Runtime instance must derive the same attempt count from SQLite rather than reset it in memory.
 - Recovery material carries its contract version and input digest. Missing or incompatible material returns an explicit refusal and never substitutes current input or defaults.
 
-This increment does not yet implement the process-kill harness, tool query reconciliation, human decision mutation, or the full AC-04..08/17 evidence matrix. Those remain Stage 02 work.
+The implementation includes query reconciliation, verified retry dispatch as a separate attempt, explicit human handling, a real subprocess restart test, additive SQLite event-schema migration, and incompatible/missing recovery-material refusal. Full Phase 1 acceptance still requires independent evidence records and later-stage regression.
 
-Exit: AC-04, AC-05, AC-06, AC-07, AC-08, and AC-17 pass and Stage 01 regresses cleanly. Stage 03 remains blocked otherwise.
+Exit: AC-04, AC-05, AC-06, AC-07, AC-08, and AC-17 recovery tests pass locally and Stage 01 regresses cleanly. Stage 03 remains blocked until its control contract is authorized.
