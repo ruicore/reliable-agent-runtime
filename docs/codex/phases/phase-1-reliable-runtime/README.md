@@ -21,6 +21,11 @@ A developer can run a deterministic tool-using workflow and obtain durable, evid
 
 Phase 1 is the complete current product baseline. Stage 01 is the first executable vertical slice, not the whole phase. Recovery, cancellation, budgets, and reproducible evidence MUST NOT be deferred into an undefined future product phase.
 
+The private catalog owns product scope, capability provenance, acceptance ownership,
+and portfolio status. This public phase owns the implementation contract, detailed
+tasks, and evidence requirements. It is intentionally not a mirror of the private
+phase documents.
+
 ## Documents
 
 - [Requirements](requirements.md)

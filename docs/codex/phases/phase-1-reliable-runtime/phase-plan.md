@@ -13,6 +13,12 @@ human_readable: false
 
 Status: planning. All implementation and validation tasks are `not_started`. This document does not authorize source/test changes, commit, push, release, or publication.
 
+The private product catalog remains the source for product scope, capability
+ownership, portfolio status, and phase-level decisions. This public plan owns the
+detailed implementation work breakdown, contract decisions, test evidence, and
+execution gates. When a requirement or acceptance rule changes, the catalog is
+updated first and this plan is synchronized afterward.
+
 ## Dependency chain
 
 `ST00 contract -> ST01 traceable -> ST02 recoverable -> ST03 controlled -> ST04 reproducible -> Phase 1 exit`
