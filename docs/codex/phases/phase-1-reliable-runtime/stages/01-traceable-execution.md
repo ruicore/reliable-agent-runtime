@@ -3,9 +3,8 @@ audience: codex
 document_role: stage_plan
 phase_id: PH1
 stage_id: PH1-ST01
-status: blocked
-blocked_by: PH1-G00
-implementation_authorized: false
+status: in_progress
+implementation_authorized: true
 human_readable: false
 ---
 

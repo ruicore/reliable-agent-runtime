@@ -3,8 +3,8 @@ audience: codex
 document_role: phase_requirements
 phase_id: PH1
 authority: normative
-status: proposed
-implementation_authorized: false
+status: active
+implementation_authorized: true
 human_readable: false
 ---
 

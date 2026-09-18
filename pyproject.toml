@@ -8,6 +8,9 @@ version = "0.1.0.dev0"
 description = "A small, inspectable runtime for durable agent tool execution, recovery, cancellation, and evidence."
 readme = "README.md"
 requires-python = ">=3.13"
+dependencies = [
+  "SQLAlchemy>=2.0,<3",
+]
 license = { file = "LICENSE" }
 authors = [
   { name = "RuiCore" },

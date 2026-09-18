@@ -3,9 +3,9 @@ audience: codex
 document_role: phase_manifest
 phase_id: PH1
 authority: normative
-status: contract_design
-active_stage: PH1-ST00
-implementation_authorized: false
+status: implementation
+active_stage: PH1-ST01
+implementation_authorized: true
 human_readable: false
 ---
 
@@ -13,7 +13,7 @@ human_readable: false
 
 Phase ID: `PH1`
 
-Status: contract design. Implementation is blocked pending `PH1-G00` approval.
+Status: Stage 00 R1 contract accepted; bounded Stage 01 implementation is in progress.
 
 ## Product outcome
 
@@ -46,7 +46,7 @@ phase documents.
 
 - The public problem, independent scenario, full Phase 1 boundary, and non-goals are recorded.
 - All examples use public or generated data and local simulators.
-- No acceptance case is claimed as passed and no Runtime feature implementation has started.
+- The bounded AC-01/AC-02/AC-03/AC-14 slice is implemented and tested locally; full acceptance remains `not_run` until independent evidence is collected.
 
 ## Phase exit
 
