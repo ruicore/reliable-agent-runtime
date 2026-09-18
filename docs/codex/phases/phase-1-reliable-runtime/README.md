@@ -4,7 +4,7 @@ document_role: phase_manifest
 phase_id: PH1
 authority: normative
 status: implementation
-active_stage: PH1-ST01
+active_stage: PH1-ST02
 implementation_authorized: true
 human_readable: false
 ---
@@ -13,7 +13,7 @@ human_readable: false
 
 Phase ID: `PH1`
 
-Status: Stage 00 R1 contract accepted; bounded Stage 01 implementation is in progress.
+Status: Stage 00 R1 contract accepted; Stage 01 bounded slice complete; Stage 02 recovery increment is in progress.
 
 ## Product outcome
 
@@ -36,9 +36,9 @@ phase documents.
 
 | Stage | Name | Status | Primary exit |
 | --- | --- | --- | --- |
-| 00 | [Contract Design](stages/00-contract-design.md) | Active | Complete requirements, interfaces, states, persistence, errors, data rules, and AC-01..18 mappings are approved. |
-| 01 | [Traceable Execution](stages/01-traceable-execution.md) | Blocked by Stage 00 | AC-01, AC-02, AC-03, and AC-14 pass. |
-| 02 | [Recoverable Execution](stages/02-recoverable-execution.md) | Blocked by Stage 01 | AC-04..08 and AC-17 pass; Stage 01 regresses cleanly. |
+| 00 | [Contract Design](stages/00-contract-design.md) | Accepted | Complete requirements, interfaces, states, persistence, errors, data rules, and AC-01..18 mappings are approved. |
+| 01 | [Traceable Execution](stages/01-traceable-execution.md) | Complete | AC-01, AC-02, AC-03, and AC-14 bounded slice tests pass. |
+| 02 | [Recoverable Execution](stages/02-recoverable-execution.md) | In progress | Guarantee-aware recovery increment is implemented; full AC-04..08 and AC-17 remain open. |
 | 03 | [Controlled Execution](stages/03-controlled-execution.md) | Blocked by Stage 02 | AC-09..13 pass; Stages 01-02 regress cleanly. |
 | 04 | [Reproducible Delivery](stages/04-reproducible-delivery.md) | Blocked by Stage 03 | AC-15, AC-16, AC-18 and full AC-01..18 regression pass. |
 
@@ -46,7 +46,8 @@ phase documents.
 
 - The public problem, independent scenario, full Phase 1 boundary, and non-goals are recorded.
 - All examples use public or generated data and local simulators.
-- The bounded AC-01/AC-02/AC-03/AC-14 slice is implemented and tested locally; full acceptance remains `not_run` until independent evidence is collected.
+- The bounded AC-01/AC-02/AC-03/AC-14 slice is implemented and tested locally.
+- Stage 02 currently covers guarantee-aware recovery decisions and durable attempt accounting; full acceptance remains `not_run` until independent evidence is collected.
 
 ## Phase exit
 

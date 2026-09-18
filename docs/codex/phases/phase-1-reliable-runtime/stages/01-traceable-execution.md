@@ -3,7 +3,7 @@ audience: codex
 document_role: stage_plan
 phase_id: PH1
 stage_id: PH1-ST01
-status: in_progress
+status: complete
 implementation_authorized: true
 human_readable: false
 ---
@@ -16,4 +16,4 @@ Scope: PH1-T01..T06. Build the domain contract, SQLite persistence, deterministi
 
 Conservative boundary: recovery, cancellation, manual resolution, and budget controls are explicitly unsupported. Unknown results pause; they are never converted into success or automatically retried.
 
-Exit: AC-01, AC-02, AC-03, and AC-14 pass; persist-before-dispatch and approval guards are demonstrated; exactly one logical product is independently observed. Stage 02 remains blocked otherwise.
+Exit: The bounded AC-01, AC-02, AC-03, and AC-14 slice passes; persist-before-dispatch and approval guards are demonstrated; exactly one logical product is independently observed. Full Phase 1 acceptance remains open.

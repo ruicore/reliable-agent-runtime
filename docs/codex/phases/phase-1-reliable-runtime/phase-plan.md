@@ -4,14 +4,14 @@ document_role: phase_execution_plan
 phase_id: PH1
 authority: operational
 status: active
-active_stage: PH1-ST01
+active_stage: PH1-ST02
 implementation_authorized: true
 human_readable: false
 ---
 
 # Phase 1 Delivery Plan
 
-Status: active. Stage 00 R1 contract is accepted for the bounded deterministic model-tool slice. This document does not authorize commit, push, release, or publication.
+Status: active. Stage 01 bounded slice is complete; Stage 02 recovery increment is in progress. This document does not authorize commit, push, release, or publication.
 
 The private product catalog remains the source for product scope, capability
 ownership, portfolio status, and phase-level decisions. This public plan owns the
@@ -97,7 +97,7 @@ Exit: AC-15, AC-16, AC-18, and full AC-01..18 regression pass. Release candidate
 | Gate | Decision |
 | --- | --- |
 | PH1-G00 | Complete contract is coherent, public-safe, and explicitly approved before implementation beyond the bounded Stage 01 slice. |
-| PH1-G01 | Traceable vertical slice is real and independently observed before recovery work. |
+| PH1-G01 | Traceable vertical slice is real, independently observed, and regressed before recovery work. |
 | PH1-G02 | Restart/recovery semantics pass before cancellation and full budget composition. |
 | PH1-G03 | Complete execution-control semantics pass before final delivery work. |
 | PH1-G04 | Full product evidence, compatibility, privacy, and packaging pass before any publication decision. |

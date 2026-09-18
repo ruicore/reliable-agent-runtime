@@ -12,6 +12,12 @@ from reliable_agent_runtime.domain import (
     RequestIdentityConflict,
 )
 from reliable_agent_runtime.model import DeterministicModel, InvalidModel
+from reliable_agent_runtime.recovery import (
+    AdapterGuarantees,
+    IncompatibleRecoveryMaterial,
+    RecoveryDecisionKind,
+    RecoveryMaterial,
+)
 from reliable_agent_runtime.runtime import RuntimeService
 from reliable_agent_runtime.sqlite import SQLiteRepository
 from reliable_agent_runtime.tool import IndependentObserver, SideEffectStore, SimulatedTool
@@ -128,3 +134,100 @@ def test_invalid_tool_response_is_unknown_and_not_success() -> None:
     assert executed.action is not None
     assert executed.action.result is ActionResultState.UNKNOWN
     assert executed.run.state.value == "ready"
+
+
+def test_unknown_without_verified_guarantees_requires_human_attention() -> None:
+    class NonQueryableTool:
+        def execute(self, *, action_id: str, target: str, payload: str) -> object:
+            return {"ack": "yes"}
+
+    service, _, _, _ = make_service()
+    service.tool = NonQueryableTool()
+    view = service.submit(request_id="req-recovery-human", text="unknown result")
+    assert view.action is not None
+    service.approve(view.action.action_id)
+    executed = service.execute(run_id=view.run.run_id)
+
+    decision = service.recovery_decision(
+        run_id=executed.run.run_id,
+        guarantees=AdapterGuarantees(),
+        max_attempts=3,
+    )
+    assert decision.kind is RecoveryDecisionKind.HUMAN_ATTENTION
+    assert len(service.query(executed.run.run_id).attempts) == 1
+
+
+def test_queryable_unknown_is_reconciled_before_retry() -> None:
+    service, _, _, _ = make_service()
+    view = service.submit(request_id="req-recovery-query", text="query result")
+    assert view.action is not None
+    service.approve(view.action.action_id)
+    service.tool = type("MalformedTool", (), {"execute": lambda *_args, **_kwargs: {"ack": "yes"}})()
+    executed = service.execute(run_id=view.run.run_id)
+
+    decision = service.recovery_decision(
+        run_id=executed.run.run_id,
+        guarantees=AdapterGuarantees(queryable=True),
+        max_attempts=3,
+    )
+    assert decision.kind is RecoveryDecisionKind.QUERY
+
+
+def test_retry_requires_verified_deduplication_and_remaining_attempts() -> None:
+    service, _, _, _ = make_service()
+    view = service.submit(request_id="req-recovery-retry", text="retry result")
+    assert view.action is not None
+    service.approve(view.action.action_id)
+    service.tool = type("MalformedTool", (), {"execute": lambda *_args, **_kwargs: {"ack": "yes"}})()
+    executed = service.execute(run_id=view.run.run_id)
+
+    guarantees = AdapterGuarantees(
+        deduplication_verified=True,
+        deduplication_scope="action",
+        retry_safe=True,
+    )
+    decision = service.recovery_decision(
+        run_id=executed.run.run_id,
+        guarantees=guarantees,
+        max_attempts=3,
+    )
+    assert decision.kind is RecoveryDecisionKind.RETRY
+    exhausted = service.recovery_decision(
+        run_id=executed.run.run_id,
+        guarantees=guarantees,
+        max_attempts=1,
+    )
+    assert exhausted.kind is RecoveryDecisionKind.HUMAN_ATTENTION
+
+
+def test_recovery_material_rejects_incompatible_history() -> None:
+    material = RecoveryMaterial(contract_version="r1", input_digest="a" * 64)
+    with pytest.raises(IncompatibleRecoveryMaterial):
+        material.require_compatible(contract_version="r1", input_digest="b" * 64)
+
+
+def test_attempt_accounting_survives_new_runtime_instance(tmp_path) -> None:
+    database = tmp_path / "runtime.sqlite"
+    url = f"sqlite:///{database}"
+    repository = SQLiteRepository(url)
+    effects = SideEffectStore()
+    service = RuntimeService(repository, DeterministicModel(), SimulatedTool(effects))
+    view = service.submit(request_id="req-restart", text="durable attempt")
+    assert view.action is not None
+    service.approve(view.action.action_id)
+    service.tool = type("MalformedTool", (), {"execute": lambda *_args, **_kwargs: {"ack": "yes"}})()
+    executed = service.execute(run_id=view.run.run_id)
+
+    restarted = RuntimeService(
+        SQLiteRepository(url),
+        DeterministicModel(),
+        type("MalformedTool", (), {"execute": lambda *_args, **_kwargs: {"ack": "yes"}})(),
+    )
+    recovered_view = restarted.query(executed.run.run_id)
+    assert len(recovered_view.attempts) == 1
+    decision = restarted.recovery_decision(
+        run_id=executed.run.run_id,
+        guarantees=AdapterGuarantees(),
+        max_attempts=3,
+    )
+    assert decision.kind is RecoveryDecisionKind.HUMAN_ATTENTION

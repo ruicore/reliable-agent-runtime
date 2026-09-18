@@ -28,6 +28,7 @@ from .domain import (
     safe_model_output,
 )
 from .ports import ModelPort, RuntimeRepository, ToolPort
+from .recovery import AdapterGuarantees, RecoveryDecision, RecoveryDecisionKind, RecoveryPolicy
 
 
 class RuntimeService:
@@ -158,8 +159,32 @@ class RuntimeService:
             "action_result": view.action.result.value if view.action else None,
             "attempt_count": len(view.attempts),
             "events": [event.kind for event in view.events],
-            "limitations": ["no retries", "no cancellation", "no recovery", "no real providers"],
+            "limitations": [
+                "no recovery dispatch or reconciliation",
+                "no cancellation",
+                "no complete retry accounting",
+                "no real providers",
+            ],
         }
+
+    def recovery_decision(
+        self,
+        *,
+        run_id: str,
+        guarantees: AdapterGuarantees,
+        max_attempts: int | None,
+    ) -> RecoveryDecision:
+        """Return a conservative decision from durable facts without dispatching."""
+
+        view = self.repository.get_view(run_id)
+        if view.action is None:
+            return RecoveryDecision(RecoveryDecisionKind.NO_ACTION, "run has no executable action")
+        return RecoveryPolicy.decide(
+            result=view.action.result,
+            attempt_count=len(view.attempts),
+            max_attempts=max_attempts,
+            guarantees=guarantees,
+        )
 
     @staticmethod
     def _event(run_id: str, kind: str, sequence: int) -> EventRecord:
