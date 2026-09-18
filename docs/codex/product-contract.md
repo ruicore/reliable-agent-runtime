@@ -36,6 +36,28 @@ Use public or generated Markdown. A deterministic model simulator produces a pra
 - Expose typed, versioned interfaces and reject unsafe recovery when required data or compatible rules are unavailable.
 - Produce minimized, redacted, reproducible evidence with independent tool-side observation.
 
+## Persistence baseline
+
+Phase 1 uses SQLite through SQLAlchemy. SQLite is the only supported database
+backend in this phase; Phase 1 does not provide a SQLite/Postgres dual-runtime
+mode.
+
+The domain layer, Repository ports, and transaction boundary MUST remain database
+agnostic:
+
+- Domain types and rules MUST NOT import SQLAlchemy or SQLite-specific APIs.
+- Repository interfaces MUST express domain operations and consistency needs, not
+  SQLAlchemy sessions, ORM models, SQL fragments, or SQLite pragmas.
+- The transaction boundary MUST be represented by a database-neutral unit-of-work
+  or transaction port; SQLAlchemy session/engine handling belongs to the SQLite
+  infrastructure adapter.
+- SQLite locking, isolation, foreign-key enforcement, migration, and recovery
+  behavior MUST be explicit in the Stage 00 contract and tested as SQLite behavior.
+- PostgreSQL, multi-instance coordination, cloud databases, and a future Postgres
+  adapter are outside Phase 1. A Postgres adapter may be proposed only when a new
+  scale, coordination, deployment, or SQLite-write-lock requirement is accepted
+  with independent migration, compatibility, and concurrency acceptance.
+
 ## Product Phase 1
 
 Phase 1 contains the complete behavior above. It is delivered through:

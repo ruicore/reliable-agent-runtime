@@ -35,7 +35,7 @@ Every later Stage depends on the prior Stage exit and full regression of earlier
 | PH1-C03 | State dimensions, allowed transitions, forbidden inferences, late-result rules | Unknown, cancel, stop, budget, approval, and external result remain orthogonal. |
 | PH1-C04 | Typed application interfaces and one developer entry surface | Submit/query/approve/reject/execute/cancel/manual/report operations have explicit availability and errors. |
 | PH1-C05 | Model/tool port contracts and capability declarations | Receipt, validity, business decision, completion, query, dedup, cancel, and retry guarantees are distinct. |
-| PH1-C06 | Persistence model, uniqueness, transactions, event ordering, restart boundary | Required facts are durable before dispatch and independent observation stays separate. |
+| PH1-C06 | SQLite/SQLAlchemy persistence model, uniqueness, database-neutral Repository and unit-of-work ports, transaction ordering, event ordering, restart boundary | Required facts are durable before dispatch; SQLAlchemy/SQLite stays in infrastructure; independent observation stays separate. |
 | PH1-C07 | Retry/time budget and recovery-decision contracts | Eligibility, clocks, consumption, exhaustion, restart, and human wait are explicit. |
 | PH1-C08 | Error, compatibility, and version-rejection contract | No error implies retry; incompatible recovery is explicit and data-safe. |
 | PH1-C09 | AC-01..18 scenarios, process fault harness, observer, and report schema | Every requirement has independent pass/fail evidence and default `not_run`. |
@@ -46,7 +46,7 @@ Every later Stage depends on the prior Stage exit and full regression of earlier
 | ID | Deliverable | Primary acceptance |
 | --- | --- | --- |
 | PH1-T01 | Immutable domain types, typed errors, and version values | Contract/invariant tests |
-| PH1-T02 | SQLite run/action/attempt/approval/event persistence and uniqueness | AC-02, AC-03 |
+| PH1-T02 | SQLAlchemy-backed SQLite run/action/attempt/approval/event persistence and uniqueness behind database-neutral ports | AC-02, AC-03 |
 | PH1-T03 | Deterministic model simulator and validation | AC-01, AC-14 |
 | PH1-T04 | Simulated tool, isolated side-effect store, and test observer | AC-01, AC-14 |
 | PH1-T05 | Submit/query/approve/reject/execute orchestration with persist-before-dispatch | AC-01, approval safety |

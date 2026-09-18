@@ -89,9 +89,22 @@ Every behavior MUST map to an acceptance case before implementation is complete.
 ## Operating boundary
 
 - One active execution service; sequential and concurrent requests within it MUST be correct.
-- SQLite is the planned local durable store unless Stage 00 explicitly changes it.
+- SQLite through SQLAlchemy is the only Phase 1 persistence backend.
+- Domain types, business rules, Repository ports, and the transaction boundary MUST
+  remain database agnostic. SQLAlchemy and SQLite-specific APIs belong only in the
+  infrastructure adapter.
+- Repository ports MUST NOT expose SQLAlchemy sessions, ORM models, query objects,
+  SQL fragments, or SQLite pragmas.
+- A database-neutral unit-of-work or transaction port owns transaction semantics;
+  the SQLite/SQLAlchemy adapter implements that port.
+- SQLite locking, isolation, foreign-key enforcement, migration, and restart
+  behavior MUST be explicit and validated as SQLite behavior.
+- Phase 1 does not support Postgres, a dual SQLite/Postgres runtime, multiple
+  database adapters, cloud databases, or distributed coordination.
 - Public/generated small text fixtures only; no network, provider key, private service, private package source, or private data.
-- Runtime dependencies remain zero unless purpose, license, maintenance, and supply-chain review approve an addition.
+- SQLAlchemy is the explicitly approved Phase 1 persistence dependency. Any
+  additional dependency still requires purpose, license, maintenance, and
+  supply-chain review.
 - No throughput, latency, capacity, service-level, model-quality, or arbitrary exactly-once claim.
 
 ## Phase 1 non-goals
@@ -118,4 +131,10 @@ Every behavior MUST map to an acceptance case before implementation is complete.
 
 ## Stage 00 blocking decisions
 
-Freeze request namespace, canonicalization/digest versions, immutable action identity, orthogonal states and transitions, adapter capability declarations, recovery eligibility, cancellation ordering, budget accounting, persistence transactions, data retention/disclosure, typed errors, report schema, fault injection, and the single developer entry surface before implementation.
+Freeze request namespace, canonicalization/digest versions, immutable action identity, orthogonal states and transitions, adapter capability declarations, recovery eligibility, cancellation ordering, budget accounting, SQLite/SQLAlchemy schema and engine contract, database-neutral Repository and unit-of-work ports, transaction boundaries, data retention/disclosure, typed errors, report schema, fault injection, and the single developer entry surface before implementation.
+
+The Stage 00 persistence decision MUST also define which guarantees are supplied by
+the domain/application layer and which are supplied by the SQLite adapter. A future
+Postgres adapter is not a Phase 1 compatibility target and MUST NOT shape the first
+implementation into a dual-backend abstraction beyond the database-neutral ports
+required above.

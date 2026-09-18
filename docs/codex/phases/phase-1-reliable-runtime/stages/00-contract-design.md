@@ -16,6 +16,13 @@ Required output:
 
 - PH1-R01..R08 and AC-01..18 remain mutually traceable.
 - Identities, immutable digests, orthogonal states/transitions, typed errors, adapter guarantees, persistence ordering, recovery, cancellation, approval, budgets, data rules, reports, and fault injection are explicit.
+- Persistence is fixed to SQLite through SQLAlchemy for Phase 1. Domain rules,
+  Repository ports, and the transaction boundary remain database agnostic; the
+  SQLite/SQLAlchemy adapter owns engine, session, locking, migration, and
+  SQLite-specific behavior.
+- Phase 1 does not design a Postgres adapter or a dual-backend runtime. A future
+  Postgres adapter requires a separate capability/problem decision and migration,
+  compatibility, and concurrency acceptance.
 - Every Stage-later operation has a conservative unsupported behavior until implemented.
 - Public content has no private provenance or environment dependency.
 

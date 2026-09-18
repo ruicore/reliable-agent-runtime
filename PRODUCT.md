@@ -17,6 +17,7 @@ Reliable Agent Runtime helps developers operate small tool-using agent workflows
 - Bounded execution with retry-count and execution-time budgets that survive process restarts.
 - Reviewable evidence through independent tool-side observations, redacted timelines, machine-readable reports, and reproducible fault scenarios.
 - Explicit compatibility boundaries for inputs, rules, actions, adapters, and reports.
+- SQLite through SQLAlchemy is the only Phase 1 persistence path; PostgreSQL and dual-backend operation are not included.
 
 ## Product Phase 1
 
