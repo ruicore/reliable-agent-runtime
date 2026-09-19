@@ -4,14 +4,14 @@ document_role: phase_execution_plan
 phase_id: PH1
 authority: operational
 status: active
-active_stage: PH1-ST02
+active_stage: PH1-ST03
 implementation_authorized: true
 human_readable: false
 ---
 
 # Phase 1 Delivery Plan
 
-Status: active. Stage 01 bounded slice and Stage 02 recovery increment are complete; Stage 03 is blocked pending its control contract. This document does not authorize commit, push, release, or publication.
+Status: active. Stage 01 bounded slice and Stage 02 recovery increment are complete; Stage 03 control increment is in progress. This document does not authorize commit, push, release, or publication.
 
 The private product catalog remains the source for product scope, capability
 ownership, portfolio status, and phase-level decisions. This public plan owns the
