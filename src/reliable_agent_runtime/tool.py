@@ -8,11 +8,20 @@ from threading import Lock
 from .domain import ActionResultState, ToolOutput
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class SideEffect:
     action_id: str
     target: str
     payload: str
+
+    def __repr__(self) -> str:
+        from .domain import digest_text
+
+        return (
+            "SideEffect("
+            f"action_id={self.action_id!r}, target={self.target!r}, "
+            f"payload_digest={digest_text(self.payload)!r})"
+        )
 
 
 class SideEffectStore:

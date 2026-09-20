@@ -3,7 +3,7 @@ audience: codex
 document_role: phase_acceptance_contract
 phase_id: PH1
 authority: normative
-status: proposed
+status: active
 case_default_status: not_run
 human_readable: false
 ---

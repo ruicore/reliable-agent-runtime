@@ -21,9 +21,9 @@ human_readable: false
 
 Current phase: `PH1`
 
-Current stage: `PH1-ST00`
+Current stage: `PH1-ST04`
 
-Implementation authorization: `false`
+Implementation authorization: `true`
 
 ## Resolution rules
 

@@ -3,15 +3,16 @@ audience: codex
 document_role: phase_execution_plan
 phase_id: PH1
 authority: operational
-status: active
-active_stage: PH1-ST03
+status: complete
+active_stage: PH1-ST04
 implementation_authorized: true
 human_readable: false
 ---
 
 # Phase 1 Delivery Plan
 
-Status: active. Stage 01 bounded slice, Stage 02 recovery increment, and Stage 03 control increment are complete; Stage 04 remains blocked. This document does not authorize commit, push, release, or publication.
+Status: complete locally. Stages 01-04 are implemented and validated under the
+declared local contract. This document does not authorize release or publication.
 
 The private product catalog remains the source for product scope, capability
 ownership, portfolio status, and phase-level decisions. This public plan owns the
@@ -90,7 +91,7 @@ Exit: AC-09, AC-10, AC-11, AC-12, and AC-13 pass; Stages 01-02 regress cleanly.
 | PH1-D05 | Clean Python 3.13/3.14 installation and package verification | AC-18 |
 | PH1-D06 | Dependency, provenance, diff, history, package-content, privacy, and claims audit | Public-candidate gate |
 
-Exit: AC-15, AC-16, AC-18, and full AC-01..18 regression pass. Release candidate readiness still does not authorize push or release.
+Exit: AC-15, AC-16, AC-18, and full AC-01..18 regression pass locally. Release candidate readiness still does not authorize release or publication.
 
 ## Review gates
 
@@ -100,7 +101,7 @@ Exit: AC-15, AC-16, AC-18, and full AC-01..18 regression pass. Release candidate
 | PH1-G01 | Traceable vertical slice is real, independently observed, and regressed before recovery work. |
 | PH1-G02 | Restart/recovery semantics pass before cancellation and full budget composition. |
 | PH1-G03 | Complete execution-control semantics pass before final delivery work. |
-| PH1-G04 | Full product evidence, compatibility, privacy, and packaging pass before any publication decision. |
+| PH1-G04 | Full product evidence, compatibility, privacy, and packaging pass before any publication decision. **Complete locally; publication remains a separate decision.** |
 
 ## Parallelization constraints
 

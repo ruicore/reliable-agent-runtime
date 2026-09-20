@@ -31,7 +31,11 @@ Phase 1 delivers the complete current product baseline. Recovery, cancellation, 
 
 The demonstration uses public or generated Markdown. A deterministic model simulator creates practice cards, a user approves the exact write action, and a local tool simulator records the side effect. Tests verify the actual result through an independent tool-side store.
 
-The project is currently in Stage 00 contract planning. Runtime feature implementation has not started.
+Stages 00-04 are complete for the Phase 1 local product baseline. The project
+now enters maintenance and capability-driven evolution: a new stage is opened
+only when a newly evidenced capability or failure boundary changes the product
+contract. External provider guarantees, distributed coordination, production
+deployment, and release publication remain outside this baseline.
 
 ## Not this product
 

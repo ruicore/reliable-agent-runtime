@@ -28,4 +28,4 @@ The first Stage 02 increment freezes the following database-neutral contracts:
 
 The implementation includes query reconciliation, verified retry dispatch as a separate attempt, explicit human handling, a real subprocess restart test, additive SQLite event-schema migration, and incompatible/missing recovery-material refusal. Full Phase 1 acceptance still requires independent evidence records and later-stage regression.
 
-Exit: AC-04, AC-05, AC-06, AC-07, AC-08, and AC-17 recovery tests pass locally and Stage 01 regresses cleanly. Stage 03 remains blocked until its control contract is authorized.
+Exit: AC-04, AC-05, AC-06, AC-07, AC-08, and AC-17 recovery tests pass locally and Stage 01 regresses cleanly. At the time of this Stage exit, Stage 03 was the next authorized increment.

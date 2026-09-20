@@ -17,7 +17,7 @@ Do not pre-create future phases. Create a new phase only after capability assess
 
 | Phase | Product outcome | Status | Plan |
 | --- | --- | --- | --- |
-| Phase 1 | Durable, recoverable, controlled, and independently reproducible Agent tool execution | Planning / Stage 00 | [Phase 1: Reliable Agent Runtime](phase-1-reliable-runtime/README.md) |
+| Phase 1 | Durable, recoverable, controlled, and independently reproducible Agent tool execution | Validated locally / Maintenance | [Phase 1: Reliable Agent Runtime](phase-1-reliable-runtime/README.md) |
 
 ## Required phase structure
 

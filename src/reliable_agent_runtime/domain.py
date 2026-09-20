@@ -95,13 +95,16 @@ class BudgetExhausted(RuntimeError):
     """A durable retry or execution-time budget prevents a new attempt."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class ModelInput:
     text: str
     contract_version: str = CONTRACT_VERSION
 
+    def __repr__(self) -> str:
+        return f"ModelInput(text_digest={digest_text(self.text)!r}, contract_version={self.contract_version!r})"
 
-@dataclass(frozen=True)
+
+@dataclass(frozen=True, repr=False)
 class ModelOutput:
     validity: ModelValidity
     title: str = ""
@@ -113,8 +116,16 @@ class ModelOutput:
     def is_valid(self) -> bool:
         return self.validity is ModelValidity.VALID
 
+    def __repr__(self) -> str:
+        return (
+            "ModelOutput("
+            f"validity={self.validity.value!r}, title_digest={digest_text(self.title)!r}, "
+            f"body_digest={digest_text(self.body)!r}, error_code={self.error_code!r}, "
+            f"contract_version={self.contract_version!r})"
+        )
 
-@dataclass(frozen=True)
+
+@dataclass(frozen=True, repr=False)
 class RunRecord:
     run_id: str
     request_id: str
@@ -122,8 +133,16 @@ class RunRecord:
     contract_version: str
     state: RunState
 
+    def __repr__(self) -> str:
+        return (
+            "RunRecord("
+            f"run_id={self.run_id!r}, request_identity_digest={digest_text(self.request_id)!r}, "
+            f"input_digest={self.input_digest!r}, contract_version={self.contract_version!r}, "
+            f"state={self.state.value!r})"
+        )
 
-@dataclass(frozen=True)
+
+@dataclass(frozen=True, repr=False)
 class ActionRecord:
     action_id: str
     run_id: str
@@ -134,6 +153,15 @@ class ActionRecord:
     dispatch: DispatchState
     result: ActionResultState
     cancellation: CancellationState = CancellationState.NOT_REQUESTED
+
+    def __repr__(self) -> str:
+        return (
+            "ActionRecord("
+            f"action_id={self.action_id!r}, run_id={self.run_id!r}, target={self.target!r}, "
+            f"payload_digest={digest_text(self.payload)!r}, action_digest={self.action_digest!r}, "
+            f"approval={self.approval.value!r}, dispatch={self.dispatch.value!r}, "
+            f"result={self.result.value!r}, cancellation={self.cancellation.value!r})"
+        )
 
 
 @dataclass(frozen=True)

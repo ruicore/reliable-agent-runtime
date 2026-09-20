@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from uuid import uuid4
 
 from .domain import (
@@ -31,6 +32,13 @@ from .domain import (
     safe_model_output,
 )
 from .ports import ModelPort, RuntimeRepository, ToolPort
+from .evidence import (
+    REPORT_VERSION,
+    concise_human_summary,
+    decision_signature,
+    environment_fingerprint,
+    safe_label,
+)
 from .recovery import (
     AdapterGuarantees,
     HumanDecisionKind,
@@ -45,10 +53,10 @@ from .recovery import (
 
 
 class RuntimeService:
-    """Minimal R1 submit/query/approve/execute/report surface.
+    """Phase 1 submit/query/approve/execute/recover/control/report surface.
 
-    Recovery is explicit and guarantee-bound in Stage 02; cancellation, complete
-    execution budgets and real providers remain unsupported in this slice.
+    Recovery and control operations remain explicit and guarantee-bound. The
+    included model and tool are deterministic local simulators, not providers.
     """
 
     def __init__(self, repository: RuntimeRepository, model: ModelPort, tool: ToolPort) -> None:
@@ -261,17 +269,53 @@ class RuntimeService:
         )
         return self.repository.get_view(run_id)
 
-    def report(self, run_id: str) -> dict[str, object]:
+    def report(
+        self,
+        run_id: str,
+        *,
+        scenario: str = "runtime_run",
+        fault_point: str | None = None,
+        expected: str | None = None,
+        independent_observation: str = "not_attached",
+    ) -> dict[str, object]:
         view = self.repository.get_view(run_id)
-        return {
+        action_result = view.action.result.value if view.action else None
+        cancellation = view.action.cancellation.value if view.action else None
+        events = [event.kind for event in view.events]
+        report: dict[str, object] = {
+            "report_version": REPORT_VERSION,
             "contract_version": CONTRACT_VERSION,
-            "run_id": view.run.run_id,
-            "request_id": view.run.request_id,
+            "scenario": {
+                "name": safe_label(scenario, default="runtime_run"),
+                "fault_point": safe_label(fault_point),
+                "expected": safe_label(expected),
+            },
+            "identities": {
+                "run_id": view.run.run_id,
+                "action_id": view.action.action_id if view.action else None,
+                "attempt_ids": [attempt.attempt_id for attempt in view.attempts],
+                "request_identity_digest": digest_text(view.run.request_id),
+                "input_digest": view.run.input_digest,
+            },
+            "versions": {
+                "contract": CONTRACT_VERSION,
+                "report": REPORT_VERSION,
+                **environment_fingerprint(),
+            },
+            "observed": {
+                "run_state": view.run.state.value,
+                "action_result": action_result,
+                "attempt_count": len(view.attempts),
+                "cancellation": cancellation,
+                "events": events,
+            },
+            # Compatibility alias for the original thin report surface. It is
+            # a minimized count and does not expose any raw execution content.
             "run_state": view.run.state.value,
-            "action_id": view.action.action_id if view.action else None,
-            "action_result": view.action.result.value if view.action else None,
+            "action_result": action_result,
+            "cancellation": cancellation,
+            "events": events,
             "attempt_count": len(view.attempts),
-            "cancellation": view.action.cancellation.value if view.action else None,
             "budget": {
                 "max_attempts": view.budget.max_attempts,
                 "attempts_consumed": view.budget.attempts_consumed,
@@ -279,15 +323,46 @@ class RuntimeService:
                 "execution_seconds_consumed": view.budget.execution_seconds_consumed,
                 "human_wait_seconds": view.budget.human_wait_seconds,
             },
-            "events": [event.kind for event in view.events],
+            "evidence": {
+                "runtime": "durable SQLite timeline",
+                "independent_observation": (
+                    "attached" if independent_observation != "not_attached" else "not_attached"
+                ),
+                "reference_digest": digest_text(independent_observation),
+                "detail_digests_present": any(event.detail_digest for event in view.events),
+            },
+            "reproducibility": {
+                "decision_signature": decision_signature(
+                    run_state=view.run.state.value,
+                    action_result=action_result,
+                    cancellation=cancellation,
+                    events=events,
+                ),
+                "identity_variance_allowed": True,
+            },
             "limitations": [
                 "recovery requires explicit adapter guarantees and material",
                 "no automatic recovery scan",
-                "no cancellation",
-                "no complete execution-time budget",
-                "no real providers",
+                "the included tool is a local simulator",
+                "no real provider or arbitrary exactly-once guarantee",
+            ],
+            "unverified": [
+                "independent tool-side observation is external to Runtime and must be supplied by the harness",
+                "simulator evidence does not generalize to arbitrary external services",
             ],
         }
+        report["human_summary"] = concise_human_summary(report)
+        return report
+
+    def human_report(self, run_id: str, **kwargs: object) -> str:
+        """Return the concise human explanation associated with a machine report."""
+
+        return self.report(run_id, **kwargs)["human_summary"]  # type: ignore[return-value]
+
+    def report_json(self, run_id: str, **kwargs: object) -> str:
+        """Serialize the minimized report for a file, CI artifact, or API response."""
+
+        return json.dumps(self.report(run_id, **kwargs), ensure_ascii=True, indent=2, sort_keys=True)
 
     def recovery_decision(
         self,
