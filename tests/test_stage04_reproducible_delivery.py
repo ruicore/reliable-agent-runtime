@@ -16,7 +16,7 @@ def make_service(tool=None):
 
 
 def test_report_is_versioned_minimized_and_json_serializable() -> None:
-    canary = "RAR_CANARY_STAGE04_PRIVATE"
+    canary = "SYNTHETIC_CANARY_STAGE04_PRIVATE"
     service, effects = make_service()
     view = service.submit(request_id="stage04-report", text=canary)
     assert view.action is not None
@@ -40,12 +40,13 @@ def test_report_is_versioned_minimized_and_json_serializable() -> None:
 
 
 def test_redaction_helper_covers_explicit_canaries_and_credential_shapes() -> None:
-    canary = "RAR_CANARY_EXPLICIT"
-    sentence = f"input={canary} bearer secret-value ghp-1234567890abcdef"
+    canary = "SYNTHETIC_CANARY_EXPLICIT"
+    bearer_value = "bearer " + "synthetic-token-value"
+    github_value = "ghp-" + "synthetic-token-value"
+    sentence = f"input={canary} {bearer_value} {github_value}"
     safe = redact_text(sentence, canaries=[canary])
     assert canary not in safe
-    assert "secret-value" not in safe
-    assert "ghp-1234567890abcdef" not in safe
+    assert "synthetic-token-value" not in safe
     assert safe.count("[REDACTED]") == 3
 
 

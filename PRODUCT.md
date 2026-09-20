@@ -31,6 +31,34 @@ Phase 1 delivers the complete current product baseline. Recovery, cancellation, 
 
 The demonstration uses public or generated Markdown. A deterministic model simulator creates practice cards, a user approves the exact write action, and a local tool simulator records the side effect. Tests verify the actual result through an independent tool-side store.
 
+## Installation
+
+The alpha distribution is intended for Python 3.13 and 3.14:
+
+```text
+python -m pip install reliable-agent-runtime
+```
+
+The package is local-first and does not require a model-provider account or a
+hosted service. SQLite is used through SQLAlchemy; external providers and
+production coordination are outside the Phase 1 boundary.
+
+## Minimal usage
+
+```python
+from reliable_agent_runtime import DeterministicModel, RuntimeService, SQLiteRepository
+from reliable_agent_runtime.tool import SideEffectStore, SimulatedTool
+
+effects = SideEffectStore()
+runtime = RuntimeService(SQLiteRepository(), DeterministicModel(), SimulatedTool(effects))
+view = runtime.submit(request_id="example-1", text="durable execution")
+runtime.approve(view.action.action_id)
+completed = runtime.execute(run_id=view.run.run_id)
+```
+
+The public repository contains the complete contract, recovery/control examples,
+fault matrix, and reproducibility instructions.
+
 Stages 00-04 are complete for the Phase 1 local product baseline. The project
 now enters maintenance and capability-driven evolution: a new stage is opened
 only when a newly evidenced capability or failure boundary changes the product

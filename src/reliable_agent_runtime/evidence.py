@@ -17,7 +17,7 @@ REDACTION_MARKER = "[REDACTED]"
 _SECRET_PATTERNS = (
     re.compile(r"(?i)\bbearer\s+[a-z0-9._~-]+"),
     re.compile(r"\b(?:sk|ghp|xoxb|xoxp)-[A-Za-z0-9_-]{8,}\b"),
-    re.compile(r"\bRAR_CANARY_[A-Za-z0-9_-]+\b"),
+    re.compile(r"\bSYNTHETIC_CANARY_[A-Za-z0-9_-]+\b"),
 )
 _SAFE_LABEL = re.compile(r"^[A-Za-z0-9_.: -]{1,128}$")
 
