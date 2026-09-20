@@ -12,6 +12,7 @@ from .domain import (
     RunRecord,
     RunState,
     RunView,
+    BudgetState,
 )
 
 
@@ -47,6 +48,34 @@ class RuntimeRepository(Protocol):
     ) -> None: ...
 
     def append_event(self, event: EventRecord, state: RunState | None = None) -> None: ...
+
+    def prepare_attempt(self, attempt: AttemptRecord, event: EventRecord) -> None: ...
+
+    def suppress_attempt(
+        self,
+        action_id: str,
+        attempt_id: str,
+        event: EventRecord,
+    ) -> None: ...
+
+    def configure_budgets(
+        self,
+        run_id: str,
+        max_attempts: int | None,
+        max_execution_seconds: float | None,
+    ) -> None: ...
+
+    def budget_state(self, run_id: str) -> BudgetState: ...
+
+    def record_human_wait(self, run_id: str, seconds: float, event: EventRecord) -> None: ...
+
+    def request_cancel(self, run_id: str, event: EventRecord) -> None: ...
+
+    def accept_cancel(self, run_id: str, event: EventRecord) -> None: ...
+
+    def confirm_stopped(self, run_id: str, event: EventRecord) -> None: ...
+
+    def invalidate_approval(self, action_id: str, event: EventRecord) -> None: ...
 
 
 class ModelPort(Protocol):

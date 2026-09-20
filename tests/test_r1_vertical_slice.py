@@ -462,12 +462,28 @@ def test_sqlite_event_schema_additive_migration_is_applied(tmp_path) -> None:
     database = tmp_path / "old-schema.sqlite"
     with sqlite3.connect(database) as connection:
         connection.execute(
+            "CREATE TABLE runs (run_id VARCHAR(64) PRIMARY KEY, request_id VARCHAR(256) UNIQUE NOT NULL, "
+            "input_digest VARCHAR(64) NOT NULL, contract_version VARCHAR(32) NOT NULL, "
+            "state VARCHAR(64) NOT NULL, created_at DATETIME NOT NULL)"
+        )
+        connection.execute(
+            "CREATE TABLE actions (action_id VARCHAR(64) PRIMARY KEY, run_id VARCHAR(64) UNIQUE NOT NULL, "
+            "target VARCHAR(256) NOT NULL, payload TEXT NOT NULL, action_digest VARCHAR(64) NOT NULL, "
+            "approval VARCHAR(32) NOT NULL, dispatch VARCHAR(32) NOT NULL, result VARCHAR(32) NOT NULL, "
+            "FOREIGN KEY(run_id) REFERENCES runs(run_id))"
+        )
+        connection.execute(
             "CREATE TABLE events (event_id VARCHAR(64) PRIMARY KEY, run_id VARCHAR(64) NOT NULL, "
-            "kind VARCHAR(128) NOT NULL, sequence INTEGER NOT NULL, created_at DATETIME NOT NULL)"
+            "kind VARCHAR(128) NOT NULL, sequence INTEGER NOT NULL, created_at DATETIME NOT NULL, "
+            "FOREIGN KEY(run_id) REFERENCES runs(run_id))"
         )
         connection.commit()
 
     SQLiteRepository(f"sqlite:///{database}")
     with sqlite3.connect(database) as connection:
-        columns = {row[1] for row in connection.execute("PRAGMA table_info(events)")}
-    assert "detail_digest" in columns
+        event_columns = {row[1] for row in connection.execute("PRAGMA table_info(events)")}
+        run_columns = {row[1] for row in connection.execute("PRAGMA table_info(runs)")}
+        action_columns = {row[1] for row in connection.execute("PRAGMA table_info(actions)")}
+    assert "detail_digest" in event_columns
+    assert {"max_attempts", "max_execution_seconds", "execution_started_at"} <= run_columns
+    assert {"cancellation", "approved_action_digest", "approved_input_digest"} <= action_columns

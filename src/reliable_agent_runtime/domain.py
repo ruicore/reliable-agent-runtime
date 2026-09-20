@@ -17,6 +17,7 @@ class RunState(StrEnum):
     COMPLETED = "completed"
     MODEL_INVALID = "model_invalid"
     TERMINATED = "terminated"
+    CANCELLED = "cancelled"
 
 
 class ActionResultState(StrEnum):
@@ -36,6 +37,13 @@ class ApprovalState(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+class CancellationState(StrEnum):
+    NOT_REQUESTED = "not_requested"
+    REQUESTED = "requested"
+    ACCEPTED = "accepted"
+    STOP_CONFIRMED = "stop_confirmed"
 
 
 class ModelValidity(StrEnum):
@@ -79,6 +87,14 @@ class ActionNotFound(RuntimeError):
     """The requested action is not present in durable state."""
 
 
+class CancellationAccepted(RuntimeError):
+    """A cancellation interlock prevents a new dispatch."""
+
+
+class BudgetExhausted(RuntimeError):
+    """A durable retry or execution-time budget prevents a new attempt."""
+
+
 @dataclass(frozen=True)
 class ModelInput:
     text: str
@@ -117,6 +133,7 @@ class ActionRecord:
     approval: ApprovalState
     dispatch: DispatchState
     result: ActionResultState
+    cancellation: CancellationState = CancellationState.NOT_REQUESTED
 
 
 @dataclass(frozen=True)
@@ -137,11 +154,22 @@ class EventRecord:
 
 
 @dataclass(frozen=True)
+class BudgetState:
+    max_attempts: int | None = None
+    attempts_consumed: int = 0
+    max_execution_seconds: float | None = None
+    execution_seconds_consumed: float = 0.0
+    human_wait_seconds: float = 0.0
+    execution_started_at: float | None = None
+
+
+@dataclass(frozen=True)
 class RunView:
     run: RunRecord
     action: ActionRecord | None
     attempts: tuple[AttemptRecord, ...]
     events: tuple[EventRecord, ...]
+    budget: BudgetState = BudgetState()
 
 
 def canonicalize_input(value: str) -> str:

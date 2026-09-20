@@ -10,6 +10,9 @@ from .domain import (
     ApprovalRequired,
     ApprovalState,
     AttemptRecord,
+    BudgetState,
+    CancellationAccepted,
+    CancellationState,
     CONTRACT_VERSION,
     ConcurrentSubmission,
     DispatchState,
@@ -118,6 +121,70 @@ class RuntimeService:
     def approve(self, action_id: str):
         self.repository.approve(action_id)
 
+    def configure_budgets(
+        self,
+        *,
+        run_id: str,
+        max_attempts: int | None,
+        max_execution_seconds: float | None,
+    ) -> BudgetState:
+        self.repository.configure_budgets(run_id, max_attempts, max_execution_seconds)
+        return self.repository.budget_state(run_id)
+
+    def budget_state(self, run_id: str) -> BudgetState:
+        return self.repository.budget_state(run_id)
+
+    def record_human_wait(self, *, run_id: str, seconds: float) -> BudgetState:
+        view = self.repository.get_view(run_id)
+        self.repository.record_human_wait(
+            run_id,
+            seconds,
+            self._event(run_id, "human_wait_recorded", len(view.events) + 1),
+        )
+        return self.repository.budget_state(run_id)
+
+    def request_cancel(self, run_id: str):
+        view = self.repository.get_view(run_id)
+        self.repository.request_cancel(
+            run_id,
+            self._event(run_id, "cancellation_requested", len(view.events) + 1),
+        )
+        return self.repository.get_view(run_id)
+
+    def accept_cancel(self, run_id: str):
+        view = self.repository.get_view(run_id)
+        self.repository.accept_cancel(
+            run_id,
+            self._event(run_id, "cancellation_accepted", len(view.events) + 1),
+        )
+        return self.repository.get_view(run_id)
+
+    def confirm_stopped(self, run_id: str):
+        view = self.repository.get_view(run_id)
+        self.repository.confirm_stopped(
+            run_id,
+            self._event(run_id, "stopping_confirmed", len(view.events) + 1),
+        )
+        return self.repository.get_view(run_id)
+
+    def invalidate_approval(self, *, run_id: str, reason: str):
+        view = self.repository.get_view(run_id)
+        if not view.action:
+            return view
+        normalized = canonicalize_input(reason)
+        if not normalized:
+            raise ValueError("approval invalidation reason is required")
+        self.repository.invalidate_approval(
+            view.action.action_id,
+            self._event(
+                run_id,
+                "approval_invalidated",
+                len(view.events) + 1,
+                detail_digest=digest_text(normalized),
+            ),
+        )
+        return self.repository.get_view(run_id)
+
     def execute(self, *, run_id: str):
         return self._dispatch(run_id=run_id, allow_unknown=False, event_prefix="dispatch")
 
@@ -127,6 +194,11 @@ class RuntimeService:
             return view
         if view.run.state is RunState.TERMINATED:
             return view
+        if view.action.cancellation in (
+            CancellationState.ACCEPTED,
+            CancellationState.STOP_CONFIRMED,
+        ):
+            return view
         if view.action.approval is not ApprovalState.APPROVED:
             raise ApprovalRequired("exact approval is required before dispatch")
         if view.action.result is not ActionResultState.NOT_STARTED and not (
@@ -135,16 +207,33 @@ class RuntimeService:
             return view
 
         attempt_id = uuid4().hex
-        self.repository.create_attempt(
-            attempt=AttemptRecord(attempt_id, view.action.action_id, DispatchState.INTENT_PERSISTED, ActionResultState.NOT_STARTED),
-            event=self._event(run_id, f"{event_prefix}_attempt_intent_persisted", len(view.events) + 1),
-        )
+        try:
+            self.repository.prepare_attempt(
+                attempt=AttemptRecord(
+                    attempt_id,
+                    view.action.action_id,
+                    DispatchState.INTENT_PERSISTED,
+                    ActionResultState.NOT_STARTED,
+                ),
+                event=self._event(run_id, f"{event_prefix}_attempt_intent_persisted", len(view.events) + 1),
+            )
+        except CancellationAccepted:
+            return self.repository.get_view(run_id)
         # This durable transition is intentionally before the tool call.
-        self.repository.mark_dispatched(
-            view.action.action_id,
-            attempt_id,
-            self._event(run_id, f"{event_prefix}_recorded", len(view.events) + 2),
-        )
+        try:
+            self.repository.mark_dispatched(
+                view.action.action_id,
+                attempt_id,
+                self._event(run_id, f"{event_prefix}_recorded", len(view.events) + 2),
+            )
+        except CancellationAccepted:
+            current = self.repository.get_view(run_id)
+            self.repository.suppress_attempt(
+                view.action.action_id,
+                attempt_id,
+                self._event(run_id, "dispatch_suppressed_by_cancellation", len(current.events) + 1),
+            )
+            return self.repository.get_view(run_id)
         outcome = self.tool.execute(
             action_id=view.action.action_id,
             target=view.action.target,
@@ -157,11 +246,18 @@ class RuntimeService:
         else:
             # A malformed acknowledgement cannot prove completion and is not retried.
             result = ActionResultState.UNKNOWN.value
+        current = self.repository.get_view(run_id)
+        result_event = (
+            "late_result_recorded"
+            if current.action
+            and current.action.cancellation in (CancellationState.ACCEPTED, CancellationState.STOP_CONFIRMED)
+            else f"{event_prefix}_result_recorded"
+        )
         self.repository.record_result(
             view.action.action_id,
             attempt_id,
             result,
-            self._event(run_id, f"{event_prefix}_result_recorded", len(view.events) + 3),
+            self._event(run_id, result_event, len(current.events) + 1),
         )
         return self.repository.get_view(run_id)
 
@@ -175,6 +271,14 @@ class RuntimeService:
             "action_id": view.action.action_id if view.action else None,
             "action_result": view.action.result.value if view.action else None,
             "attempt_count": len(view.attempts),
+            "cancellation": view.action.cancellation.value if view.action else None,
+            "budget": {
+                "max_attempts": view.budget.max_attempts,
+                "attempts_consumed": view.budget.attempts_consumed,
+                "max_execution_seconds": view.budget.max_execution_seconds,
+                "execution_seconds_consumed": view.budget.execution_seconds_consumed,
+                "human_wait_seconds": view.budget.human_wait_seconds,
+            },
             "events": [event.kind for event in view.events],
             "limitations": [
                 "recovery requires explicit adapter guarantees and material",

@@ -11,7 +11,7 @@ human_readable: false
 
 # Phase 1 Delivery Plan
 
-Status: active. Stage 01 bounded slice and Stage 02 recovery increment are complete; Stage 03 control increment is in progress. This document does not authorize commit, push, release, or publication.
+Status: active. Stage 01 bounded slice, Stage 02 recovery increment, and Stage 03 control increment are complete; Stage 04 remains blocked. This document does not authorize commit, push, release, or publication.
 
 The private product catalog remains the source for product scope, capability
 ownership, portfolio status, and phase-level decisions. This public plan owns the
