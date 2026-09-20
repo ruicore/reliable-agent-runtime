@@ -17,17 +17,7 @@ Reliable Agent Runtime helps developers operate small tool-using agent workflows
 - Bounded execution with retry-count and execution-time budgets that survive process restarts.
 - Reviewable evidence through independent tool-side observations, redacted timelines, machine-readable reports, and reproducible fault scenarios.
 - Explicit compatibility boundaries for inputs, rules, actions, adapters, and reports.
-- SQLite through SQLAlchemy is the only Phase 1 persistence path; PostgreSQL and dual-backend operation are not included.
-
-## Product Phase 1
-
-Phase 1 delivers the complete current product baseline. Recovery, cancellation, budgets, compatibility, and evidence are internal delivery stages, not deferred product phases:
-
-1. Stage 00 freezes interfaces, states, identities, persistence, errors, data rules, and acceptance contracts.
-2. Stage 01 delivers the traceable, approval-gated deterministic model-tool vertical slice.
-3. Stage 02 adds uncertain-result handling, real process restart, conditional recovery, and human resolution.
-4. Stage 03 adds cancellation and stopping confirmation, approval invalidation, retry budgets, and time budgets.
-5. Stage 04 completes redacted evidence, the fault matrix, compatibility validation, and independently reproducible delivery.
+- SQLite through SQLAlchemy is the supported persistence path in this release; PostgreSQL and dual-backend operation are not included.
 
 The demonstration uses public or generated Markdown. A deterministic model simulator creates practice cards, a user approves the exact write action, and a local tool simulator records the side effect. Tests verify the actual result through an independent tool-side store.
 
@@ -41,7 +31,7 @@ python -m pip install reliable-agent-runtime
 
 The package is local-first and does not require a model-provider account or a
 hosted service. SQLite is used through SQLAlchemy; external providers and
-production coordination are outside the Phase 1 boundary.
+production coordination are outside the current release scope.
 
 ## Minimal usage
 
@@ -57,13 +47,10 @@ completed = runtime.execute(run_id=view.run.run_id)
 ```
 
 The public repository contains the complete contract, recovery/control examples,
-fault matrix, and reproducibility instructions.
-
-Stages 00-04 are complete for the Phase 1 local product baseline. The project
-now enters maintenance and capability-driven evolution: a new stage is opened
-only when a newly evidenced capability or failure boundary changes the product
-contract. External provider guarantees, distributed coordination, production
-deployment, and release publication remain outside this baseline.
+fault matrix, and reproducibility instructions. The implementation evolves when
+new evidence changes the runtime contract or exposes a new failure boundary.
+External provider guarantees, distributed coordination, production deployment,
+and release publication are outside the current release scope.
 
 ## Not this product
 

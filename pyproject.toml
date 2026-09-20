@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reliable-agent-runtime"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "A small, inspectable runtime for durable agent tool execution, recovery, cancellation, and evidence."
 readme = "PRODUCT.md"
 requires-python = ">=3.13"
