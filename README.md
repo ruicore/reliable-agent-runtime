@@ -19,8 +19,18 @@ Lower-authority material MUST NOT broaden a higher-authority product boundary.
 - Active phase: [PH1 reliable runtime](docs/codex/phases/phase-1-reliable-runtime/README.md)
 - Lifecycle: `stage_04_reproducible_delivery`
 - Implementation authorization: `authorized_for_phase_1`
-- Acceptance status: `stage_04_local_validation_in_progress`
+- Acceptance status: `phase_1_complete_locally`
 - Public push authorization for current changes: `user_authorized`
+
+Phase 1 Stages 01-04 are complete locally, with AC-01 through AC-18 covered by
+local regression evidence. See the [phase manifest](docs/codex/phases/phase-1-reliable-runtime/README.md)
+and [Stage 04 validation record](docs/codex/phases/phase-1-reliable-runtime/stage-04-validation.md)
+for acceptance ownership and recorded Python 3.13/3.14 results. Validation uses
+public or generated inputs, a deterministic model simulator, local tool
+simulators, and independent tool-side observations supplied by the test harness.
+These results establish the declared local contract; external providers,
+arbitrary exactly-once behavior, distributed coordination, and production
+deployment remain unverified and outside Phase 1.
 
 ## Repository constraints
 
